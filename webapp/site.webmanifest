@@ -1,0 +1,11 @@
+{
+    "short_name": "ChecklistTransfer",
+    "name": "App developed by Mattia De Vincentis & Federica Rosalia Giannotti",
+    "icons": [{
+        "src": "../img/logo.png",
+        "type": "image/png",
+        "sizes": "192x192"
+    }],
+    "theme_color": "#fff",
+    "display": "fullscreen"
+}

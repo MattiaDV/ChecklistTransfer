@@ -1,11 +1,66 @@
 <!DOCTYPE html>
-<html lang="en">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-        <title>ChecklistTransfer</title>
-    </head>
-    <body>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+    <title>Checklist Manager</title>
+    <!-- Firebase SDK -->
+    <link rel = "stylesheet" href = "./style/style.css">
+    <link rel="manifest" href="./webapp/site.webmanifest">
+</head>
+<body>
+    <!-- Schermata di autenticazione -->
+    <div id="authContainer" class="auth-container">
+        <div class="auth-card fade-in">
+            <h2 id="authTitle" class="auth-title">🔐 Accedi</h2>
+            <p id="authSubtitle" class="auth-subtitle">Accedi per gestire le tue checklist</p>
+            
+            <div id="authError" class="error-message hidden"></div>
+            
+            <form id="authForm" class="auth-form">
+                <input type="email" id="authEmail" class="auth-input" placeholder="Inserisci la tua email" required>
+                <input type="password" id="authPassword" class="auth-input" placeholder="Inserisci la password" required>
+                <button type="submit" id="authSubmit" class="btn btn-primary">Accedi</button>
+            </form>
+            
+            <button id="authToggle" class="auth-toggle">Non hai un account? Registrati</button>
+        </div>
+    </div>
+
+    <!-- Applicazione principale -->
+    <div id="appContainer" class="container hidden">
+        <div class="header">
+            <div class="user-info">
+                <span id="userEmail" class="user-email"></span>
+                <button id="logoutBtn" class="logout-btn" onclick="logout()">Esci</button>
+            </div>
+            <h1>📝 Checklist Manager</h1>
+            <p>Organizza le tue attività per categoria e tieni traccia dei tuoi progressi</p>
+        </div>
         
-    </body>
+        <div class="main-content">
+            <div class="add-category-section">
+                <div class="input-group">
+                    <input type="text" id="categoryNameInput" class="input-field" placeholder="Nome della nuova categoria (es. Spesa, Lavoro, Viaggio...)">
+                    <button class="btn btn-primary" onclick="addCategory()">
+                        ➕ Aggiungi Categoria
+                    </button>
+                </div>
+            </div>
+            
+            <div id="categoriesContainer" class="categories-container">
+                <!-- Le categorie verranno aggiunte qui dinamicamente -->
+            </div>
+            
+            <div id="emptyState" class="empty-state">
+                <h3>🎯 Inizia creando la tua prima categoria!</h3>
+                <p>Organizza le tue attività in categorie per una migliore gestione</p>
+            </div>
+        </div>
+    </div>
+
+    <div id="notification" class="notification"></div>
+
+    <script src = "./script/script.js" type = "module"></script>
+</body>
 </html>

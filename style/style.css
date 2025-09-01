@@ -206,10 +206,6 @@ body {
     border-color: #667eea;
 }
 
-.checklist-items {
-    max-height: 300px;
-}
-
 .checklist-item {
     display: flex;
     align-items: center;

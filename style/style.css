@@ -255,6 +255,21 @@ body {
     opacity: 0.7;
 }
 
+.edit-item {
+    background: none;
+    border: none;
+    cursor: pointer;
+    border-radius: 50%;
+    font-size: 16px;
+    transition: all 0.3s ease;
+    opacity: 0.6;
+    padding: 4px;
+}
+
+.edit-item:hover {
+    background: #10b98156;
+}
+
 .delete-item {
     background: none;
     border: none;

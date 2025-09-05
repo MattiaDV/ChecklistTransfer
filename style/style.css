@@ -6,23 +6,23 @@
 
 body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: #f5f6fa;
     min-height: 100vh;
     padding: 20px;
+    color: #1f2937;
 }
 
 .container {
     max-width: 1200px;
     margin: 0 auto;
-    background: rgba(255, 255, 255, 0.95);
+    background: #ffffff;
     border-radius: 20px;
-    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.08);
     overflow: hidden;
-    backdrop-filter: blur(10px);
 }
 
 .header {
-    background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+    background: #2563eb;
     padding: 30px;
     text-align: center;
     color: white;
@@ -31,7 +31,7 @@ body {
 .header h1 {
     font-size: 2.5rem;
     margin-bottom: 10px;
-    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+    font-weight: 700;
 }
 
 .header p {
@@ -44,17 +44,17 @@ body {
 }
 
 .add-category-section {
-    background: #f8f9ff;
+    background: #f9fafb;
     padding: 25px;
     border-radius: 15px;
     margin-bottom: 30px;
-    border: 2px dashed #e0e6ff;
+    border: 2px dashed #d1d5db;
     transition: all 0.3s ease;
 }
 
 .add-category-section:hover {
-    border-color: #4facfe;
-    background: #f0f4ff;
+    border-color: #2563eb;
+    background: #f3f4f6;
 }
 
 .input-group {
@@ -68,7 +68,7 @@ body {
     flex: 1;
     min-width: 250px;
     padding: 12px 16px;
-    border: 2px solid #e1e5e9;
+    border: 2px solid #d1d5db;
     border-radius: 10px;
     font-size: 16px;
     transition: all 0.3s ease;
@@ -76,8 +76,8 @@ body {
 
 .input-field:focus {
     outline: none;
-    border-color: #4facfe;
-    box-shadow: 0 0 0 3px rgba(79, 172, 254, 0.1);
+    border-color: #2563eb;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
 }
 
 .btn {
@@ -92,36 +92,40 @@ body {
     letter-spacing: 0.5px;
 }
 
+/* Pulsante principale (blu professionale) */
 .btn-primary {
-    background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+    background: #2563eb;
     color: white;
-    box-shadow: 0 4px 15px rgba(79, 172, 254, 0.3);
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);
 }
 
 .btn-primary:hover {
+    background: #1e40af;
     transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(79, 172, 254, 0.4);
 }
 
+/* Pulsante secondario (grigio elegante) */
 .btn-secondary {
-    background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+    background: #6b7280;
     color: white;
-    box-shadow: 0 4px 15px rgba(250, 112, 154, 0.3);
+    box-shadow: 0 4px 12px rgba(107, 114, 128, 0.25);
 }
 
 .btn-secondary:hover {
+    background: #4b5563;
     transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(250, 112, 154, 0.4);
 }
 
+/* Pulsante danger (rosso professionale) */
 .btn-danger {
-    background: linear-gradient(135deg, #ff6b6b 0%, #ffd93d 100%);
+    background: #dc2626;
     color: white;
     padding: 8px 12px;
     font-size: 14px;
 }
 
 .btn-danger:hover {
+    background: #b91c1c;
     transform: scale(1.05);
 }
 
@@ -134,19 +138,19 @@ body {
 .category-card {
     background: white;
     border-radius: 15px;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
     overflow: hidden;
     transition: all 0.3s ease;
-    border: 1px solid #f0f0f0;
+    border: 1px solid #e5e7eb;
 }
 
 .category-card:hover {
     transform: translateY(-5px);
-    box-shadow: 0 15px 40px rgba(0, 0, 0, 0.15);
+    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.12);
 }
 
 .category-header {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: #2563eb;
     color: white;
     padding: 20px;
     position: relative;
@@ -199,7 +203,7 @@ body {
 .add-item-input {
     flex: 1;
     padding: 10px 12px;
-    border: 2px solid #f0f0f0;
+    border: 2px solid #e5e7eb;
     border-radius: 8px;
     font-size: 14px;
     max-width: 70%;
@@ -208,14 +212,14 @@ body {
 
 .add-item-input:focus {
     outline: none;
-    border-color: #667eea;
+    border-color: #2563eb;
 }
 
 .checklist-item {
     display: flex;
     align-items: center;
     padding: 12px 0;
-    border-bottom: 1px solid #f5f5f5;
+    border-bottom: 1px solid #f3f4f6;
     transition: all 0.3s ease;
 }
 
@@ -224,7 +228,7 @@ body {
 }
 
 .checklist-item:hover {
-    background: #f8f9ff;
+    background: #f9fafb;
     margin: 0 -10px;
     padding-left: 10px;
     padding-right: 10px;
@@ -247,14 +251,14 @@ body {
 
 .item-text.completed {
     text-decoration: line-through;
-    color: #888;
+    color: #9ca3af;
     opacity: 0.7;
 }
 
 .delete-item {
     background: none;
     border: none;
-    color: #ff6b6b;
+    color: #dc2626;
     cursor: pointer;
     padding: 5px;
     border-radius: 50%;
@@ -265,12 +269,12 @@ body {
 
 .delete-item:hover {
     opacity: 1;
-    background: rgba(255, 107, 107, 0.1);
+    background: rgba(220, 38, 38, 0.1);
 }
 
 .empty-state {
     text-align: center;
-    color: #888;
+    color: #9ca3af;
     font-style: italic;
     padding: 40px 20px;
 }
@@ -278,7 +282,7 @@ body {
 .progress-bar {
     width: 100%;
     height: 6px;
-    background: rgba(255, 255, 255, 0.3);
+    background: #e5e7eb;
     border-radius: 3px;
     margin-top: 15px;
     overflow: hidden;
@@ -286,7 +290,7 @@ body {
 
 .progress-fill {
     height: 100%;
-    background: rgba(255, 255, 255, 0.8);
+    background: #2563eb;
     border-radius: 3px;
     transition: width 0.5s ease;
 }
@@ -330,6 +334,19 @@ body {
         min-width: 100%;
         max-width: 100%;
     }
+
+    .user-info {
+        display: block !important;
+        gap: 10px;
+    }
+
+    .user-email {
+        margin-bottom: 10px;
+    }
+
+    .logout-btn {
+        margin-top: 10px;
+    }
 }
 
 .notification {
@@ -337,7 +354,7 @@ body {
     top: 20px;
     right: 20px;
     padding: 15px 20px;
-    background: #4caf50;
+    background: #16a34a;
     color: white;
     border-radius: 8px;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
@@ -355,14 +372,14 @@ body {
     justify-content: center;
     align-items: center;
     min-height: 100vh;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: #f5f6fa;
 }
 
 .auth-card {
     background: white;
     padding: 40px;
     border-radius: 20px;
-    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.08);
     width: 100%;
     max-width: 400px;
     text-align: center;
@@ -371,11 +388,11 @@ body {
 .auth-title {
     font-size: 2rem;
     margin-bottom: 10px;
-    color: #333;
+    color: #1f2937;
 }
 
 .auth-subtitle {
-    color: #666;
+    color: #6b7280;
     margin-bottom: 30px;
 }
 
@@ -387,7 +404,7 @@ body {
 
 .auth-input {
     padding: 15px;
-    border: 2px solid #e1e5e9;
+    border: 2px solid #d1d5db;
     border-radius: 10px;
     font-size: 16px;
     transition: all 0.3s ease;
@@ -395,14 +412,14 @@ body {
 
 .auth-input:focus {
     outline: none;
-    border-color: #4facfe;
-    box-shadow: 0 0 0 3px rgba(79, 172, 254, 0.1);
+    border-color: #2563eb;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
 }
 
 .auth-toggle {
     background: none;
     border: none;
-    color: #4facfe;
+    color: #2563eb;
     text-decoration: underline;
     cursor: pointer;
     font-size: 16px;
@@ -410,7 +427,7 @@ body {
 }
 
 .auth-toggle:hover {
-    color: #667eea;
+    color: #1e40af;
 }
 
 .loading {
@@ -419,8 +436,8 @@ body {
 }
 
 .error-message {
-    color: #ff6b6b;
-    background: #fff5f5;
+    color: #dc2626;
+    background: #fef2f2;
     border: 1px solid #fecaca;
     padding: 10px;
     border-radius: 8px;
@@ -431,20 +448,20 @@ body {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    background: rgba(255, 255, 255, 0.1);
+    background: #f3f4f6;
     padding: 15px 20px;
     border-radius: 10px;
     margin-bottom: 10px;
 }
 
 .user-email {
-    color: white;
+    color: #1f2937;
     font-weight: 500;
 }
 
 .logout-btn {
-    background: rgba(255, 255, 255, 0.2);
-    color: white;
+    background: #e5e7eb;
+    color: #1f2937;
     border: none;
     padding: 8px 15px;
     border-radius: 8px;
@@ -454,7 +471,7 @@ body {
 }
 
 .logout-btn:hover {
-    background: rgba(255, 255, 255, 0.3);
+    background: #d1d5db;
 }
 
 .hidden {

@@ -213,6 +213,58 @@ function deleteCategory(categoryName) {
     }
 }
 
+function editCategory(oldCategoryName) {
+    if (!currentUser) return;
+
+    const newCategoryName = prompt(
+        `Inserisci il nuovo nome per la categoria "${oldCategoryName}":`,
+        oldCategoryName
+    );
+
+    if (!newCategoryName || newCategoryName.trim() === "" || newCategoryName === oldCategoryName) {
+        return;
+    }
+
+    if (categories[newCategoryName]) {
+        showNotification(`La categoria "${newCategoryName}" esiste già!`);
+        return;
+    }
+
+    // Aggiorna localmente
+    categories[newCategoryName] = categories[oldCategoryName];
+    delete categories[oldCategoryName];
+
+    // Aggiorna su Firebase
+    updateCategoryInFirebase(oldCategoryName, newCategoryName);
+
+    showNotification(`Categoria rinominata da "${oldCategoryName}" a "${newCategoryName}"!`);
+
+    // 🔄 Rirenderizza la UI (se hai una funzione del genere)
+    renderCategories();
+}
+
+function updateCategoryInFirebase(oldName, newName) {
+    if (!currentUser) return;
+
+    const userId = currentUser.uid;
+
+    const oldRef = ref(database, `users/${userId}/categories/${oldName}`);
+    const newRef = ref(database, `users/${userId}/categories/${newName}`);
+
+    // Otteniamo i dati dalla vecchia categoria
+    onValue(oldRef, snapshot => {
+        if (snapshot.exists()) {
+            const data = snapshot.val();
+
+            // Scriviamo i dati nella nuova categoria
+            set(newRef, data).then(() => {
+                // Eliminiamo la vecchia categoria
+                remove(oldRef);
+            });
+        }
+    }, { onlyOnce: true }); // <-- così viene letto solo una volta
+}
+
 function addItem(categoryName, inputId) {
     if (!currentUser) return showNotification('Devi essere loggato per aggiungere elementi!');
     const input = document.getElementById(inputId);
@@ -232,6 +284,33 @@ function addItem(categoryName, inputId) {
     input.value = '';
     saveItemToFirebase(categoryName, newItem);
     showNotification('Elemento aggiunto alla checklist!');
+}
+
+function updateItemInFirebase(categoryName, itemId, updates) {
+    if (!currentUser) return;
+    const userId = currentUser.uid;
+
+    const itemRef = ref(database, `users/${userId}/categories/${categoryName}/items/${itemId}`);
+    set(itemRef, {
+        ...categories[categoryName].items[itemId],
+        ...updates
+    });
+}
+
+function editItem(categoryName, itemId) {
+    if (!currentUser) return;
+
+    const currentText = categories[categoryName].items[itemId].text;
+    const newText = prompt("Modifica il testo dell'elemento:", currentText);
+
+    if (!newText || newText.trim() === "" || newText === currentText) return;
+
+    categories[categoryName].items[itemId].text = newText;
+
+    updateItemInFirebase(categoryName, itemId, { text: newText });
+
+    showNotification("Elemento modificato!");
+    renderCategories(); // 🔄 se hai questa funzione per aggiornare la UI
 }
 
 function deleteItem(categoryName, itemId) {
@@ -285,6 +364,7 @@ function createCategoryCard(categoryName, stats) {
     card.innerHTML = `
         <div class="category-header">
             <button class="delete-category" onclick="deleteCategory('${categoryName}')" title="Elimina categoria">×</button>
+            <button class="delete-category" style = "margin-right: 40px" onclick="editCategory('${categoryName}')" title="Modifica categoria"><svg width = "10px" height = "10px" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><g id="SVGRepo_bgCarrier" stroke-width="0"></g><g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round"></g><g id="SVGRepo_iconCarrier"> <path d="M8.29289 3.70711L1 11V15H5L12.2929 7.70711L8.29289 3.70711Z" fill="#fff"></path> <path d="M9.70711 2.29289L13.7071 6.29289L15.1716 4.82843C15.702 4.29799 16 3.57857 16 2.82843C16 1.26633 14.7337 0 13.1716 0C12.4214 0 11.702 0.297995 11.1716 0.828428L9.70711 2.29289Z" fill="#fff"></path> </g></svg></button>
             <div class="category-title">${categoryName}</div>
             <div class="category-stats">${stats.completed}/${stats.total} completati (${stats.percentage}%)</div>
             <div class="progress-bar">
@@ -315,6 +395,7 @@ function createItemsList(categoryName) {
             <input type="checkbox" class="checkbox" ${item.completed ? 'checked' : ''} onchange="toggleItem('${categoryName}', '${item.id}')">
             <span class="item-text ${item.completed ? 'completed' : ''}">${item.text}</span>
             <button class="delete-item" onclick="deleteItem('${categoryName}','${item.id}')" title="Elimina elemento">×</button>
+            <button class="delete-item" onclick="editItem('${categoryName}','${item.id}')" title="Modifica elemento"><svg width = "10px" height = "10px" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><g id="SVGRepo_bgCarrier" stroke-width="0"></g><g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round"></g><g id="SVGRepo_iconCarrier"> <path d="M8.29289 3.70711L1 11V15H5L12.2929 7.70711L8.29289 3.70711Z" fill="#ff6b6b"></path> <path d="M9.70711 2.29289L13.7071 6.29289L15.1716 4.82843C15.702 4.29799 16 3.57857 16 2.82843C16 1.26633 14.7337 0 13.1716 0C12.4214 0 11.702 0.297995 11.1716 0.828428L9.70711 2.29289Z" fill="#ff6b6b"></path> </g></svg></button>
         </div>
     `).join('');
 }
@@ -334,3 +415,6 @@ window.addItem = addItem;
 window.deleteItem = deleteItem;
 window.toggleItem = toggleItem;
 window.logout = logout;
+window.editCategory = editCategory;
+window.updateItemInFirebase = updateItemInFirebase;
+window.editItem = editItem;

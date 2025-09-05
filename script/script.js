@@ -237,7 +237,7 @@ function editCategory(oldCategoryName) {
     // Aggiorna su Firebase
     updateCategoryInFirebase(oldCategoryName, newCategoryName);
 
-    showNotification(`Categoria rinominata da "${oldCategoryName}" a "${newCategoryName}"!`);
+    showNotification(`Nome categoria modificato`);
 
     // 🔄 Rirenderizza la UI (se hai una funzione del genere)
     renderCategories();

@@ -408,42 +408,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
-// ==================== VOICE COMMANDS + AI ====================
-const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-
-if (SpeechRecognition) {
-    const recognition = new SpeechRecognition();
-    recognition.lang = 'it-IT';
-    recognition.interimResults = false;
-
-    recognition.addEventListener('result', async e => {
-        const text = e.results[0][0].transcript.toLowerCase().trim();
-        console.log('Riconosciuto:', text);
-        showNotification(`Hai detto: "${text}"`);
-
-        try {
-            await handleVoiceCommand(text);
-            renderCategories();
-        } catch (err) {
-            console.error(err);
-            showNotification("Errore nell'eseguire il comando");
-        }
-    });
-
-    // Bottone per attivare la voce
-    const voiceBtn = document.createElement('button');
-    voiceBtn.textContent = '🎤 Comandi Vocali';
-    voiceBtn.onclick = () => {
-        recognition.start();
-        showNotification('Parla ora!');
-    };
-    document.body.prepend(voiceBtn);
-
-} else {
-    showNotification('Il tuo browser non supporta il riconoscimento vocale');
-}
-
-// ==================== FUNZIONE DI PARSING DEL TESTO ====================
+// ==================== PARSING DEL COMANDO VOCALE ====================
 function parseTextCommand(text) {
     text = text.toLowerCase().trim();
     let azione = "none", elementi = [], categoria = "", nuovoElemento = "";
@@ -453,13 +418,13 @@ function parseTextCommand(text) {
     else if (text.includes("elimina") || text.includes("rimuovi")) azione = "delete";
     else if (text.includes("segna") || text.includes("completato")) azione = "check";
 
-    // regex per catturare la parte degli elementi e della categoria
+    // regex per catturare elementi e categoria
     const match = text.match(/(?:aggiungi|modifica|elimina|segna)\s+(.+?)\s+(?:alla categoria|in)\s+(.+)/);
     if (match) {
         const elementiRaw = match[1].trim();
 
-        // separa elementi per virgola o "e"
-        elementi = elementiRaw.split(/,| e /).map(el => el.trim()).filter(el => el.length > 0);
+        // Separiamo per virgola o "e", ignorando eventuali spazi
+        elementi = elementiRaw.split(/\s*,\s*|\s+e\s+/).map(el => el.trim()).filter(el => el.length > 0);
 
         categoria = match[2].trim();
     }
@@ -471,7 +436,7 @@ function parseTextCommand(text) {
 async function handleVoiceCommand(recognizedText) {
     const { azione, elementi, categoria, nuovoElemento } = parseTextCommand(recognizedText);
 
-    if (azione === "none" || elementi.length === 0) {
+    if (azione === "none" || (elementi.length === 0 && azione !== "editCategory" && azione !== "deleteCategory")) {
         showNotification("Comando non riconosciuto!");
         return;
     }
@@ -483,7 +448,7 @@ async function handleVoiceCommand(recognizedText) {
             }
             break;
         case "edit":
-            // Per edit dobbiamo gestire solo un elemento alla volta
+            // per edit gestiamo un solo elemento alla volta
             await editItemVoice(elementi[0], nuovoElemento, categoria);
             break;
         case "delete":
@@ -501,9 +466,6 @@ async function handleVoiceCommand(recognizedText) {
 
 // ==================== FUNZIONI DI GESTIONE ELEMENTI ====================
 async function addItemVoice(elemento, categoria) {
-    elemento = elemento.trim();
-    categoria = categoria.trim();
-
     if (!categories[categoria]) {
         categories[categoria] = { name: categoria, items: {} };
         await saveCategoryToFirebase(categoria);
@@ -520,36 +482,35 @@ async function addItemVoice(elemento, categoria) {
 
     categories[categoria].items = categories[categoria].items || {};
     categories[categoria].items[newItem.id] = newItem;
-
     await saveItemToFirebase(categoria, newItem);
     showNotification(`Elemento "${elemento}" aggiunto alla categoria "${categoria}"!`);
+    renderCategories();
 }
 
 async function editItemVoice(elemento, nuovoElemento, categoria) {
     if (!categories[categoria]) return showNotification(`Categoria "${categoria}" non esiste`);
-
     const item = Object.values(categories[categoria].items).find(i => i.text === elemento);
     if (!item) return showNotification(`Elemento "${elemento}" non trovato in "${categoria}"`);
 
     item.text = nuovoElemento;
     await updateItemInFirebase(categoria, item.id, { text: nuovoElemento });
     showNotification(`Elemento "${elemento}" modificato in "${nuovoElemento}"`);
+    renderCategories();
 }
 
 async function deleteItemVoice(elemento, categoria) {
     if (!categories[categoria]) return showNotification(`Categoria "${categoria}" non esiste`);
-
     const item = Object.values(categories[categoria].items).find(i => i.text === elemento);
     if (!item) return showNotification(`Elemento "${elemento}" non trovato in "${categoria}"`);
 
     delete categories[categoria].items[item.id];
     await deleteItemFromFirebase(categoria, item.id);
     showNotification(`Elemento "${elemento}" eliminato da "${categoria}"`);
+    renderCategories();
 }
 
 async function checkItemVoice(elemento, categoria) {
     if (!categories[categoria]) return showNotification(`Categoria "${categoria}" non esiste`);
-
     const item = Object.values(categories[categoria].items).find(i => i.text === elemento);
     if (!item) return showNotification(`Elemento "${elemento}" non trovato in "${categoria}"`);
 
@@ -557,6 +518,44 @@ async function checkItemVoice(elemento, categoria) {
     item.completedAt = item.completed ? Date.now() : null;
     await saveItemToFirebase(categoria, item);
     showNotification(`Elemento "${elemento}" marcato come ${item.completed ? 'completato' : 'non completato'}`);
+    renderCategories();
+}
+
+// ==================== FUNZIONI GESTIONE CATEGORIE ====================
+async function addCategoryVoice(categoria) {
+    if (!categories[categoria]) {
+        categories[categoria] = { name: categoria, items: {} };
+        await saveCategoryToFirebase(categoria);
+        showNotification(`Categoria "${categoria}" creata!`);
+        renderCategories();
+    } else {
+        showNotification(`La categoria "${categoria}" esiste già!`);
+    }
+}
+
+async function editCategoryVoice(oldName, newName) {
+    if (!categories[oldName]) return showNotification(`Categoria "${oldName}" non esiste`);
+    if (categories[newName]) return showNotification(`Categoria "${newName}" esiste già!`);
+
+    categories[newName] = categories[oldName];
+    delete categories[oldName];
+    await updateCategoryInFirebase(oldName, newName);
+    showNotification(`Categoria "${oldName}" rinominata in "${newName}"`);
+    renderCategories();
+}
+
+async function deleteCategoryVoice(categoria) {
+    if (!categories[categoria]) return showNotification(`Categoria "${categoria}" non esiste`);
+    if (!confirm(`Sei sicuro di eliminare la categoria "${categoria}" e tutti i suoi elementi?`)) return;
+
+    const items = Object.keys(categories[categoria].items || {});
+    for (const itemId of items) {
+        await deleteItemFromFirebase(categoria, itemId);
+    }
+    delete categories[categoria];
+    await deleteCategoryFromFirebase(categoria);
+    showNotification(`Categoria "${categoria}" eliminata`);
+    renderCategories();
 }
 
 // ==================== ESPOSIZIONE FUNZIONI GLOBALI ====================

@@ -406,7 +406,9 @@ document.addEventListener('DOMContentLoaded', () => {
     if (categoryInput) {
         categoryInput.addEventListener('keypress', e => { if (e.key==='Enter') addCategory(); });
     }
-});// ==================== VOICE COMMANDS + AI ====================
+});
+
+// ==================== VOICE COMMANDS + AI ====================
 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 
 if (SpeechRecognition) {
@@ -419,23 +421,13 @@ if (SpeechRecognition) {
         console.log('Riconosciuto:', text);
         showNotification(`Hai detto: "${text}"`);
 
-        // Chiama la funzione Netlify invece di OpenAI direttamente
-        const parsed = parseTextCommand(text);
-        if (!parsed) return showNotification("Non ho capito il comando");
-
-        const { azione, elemento, categoria, nuovoElemento } = parsed;
-
         try {
-            if (azione === "add") addItemVoice(elemento, categoria);
-            else if (azione === "edit") editItemVoice(elemento, nuovoElemento, categoria);
-            else if (azione === "delete") deleteItemVoice(elemento, categoria);
-            else if (azione === "check") checkItemVoice(elemento, categoria);
+            await handleVoiceCommand(text);
+            renderCategories();
         } catch (err) {
             console.error(err);
             showNotification("Errore nell'eseguire il comando");
         }
-
-        renderCategories();
     });
 
     // Bottone per attivare la voce
@@ -454,48 +446,81 @@ if (SpeechRecognition) {
 // ==================== FUNZIONE DI PARSING DEL TESTO ====================
 function parseTextCommand(text) {
     text = text.toLowerCase();
-    let azione = "none", elemento = "", categoria = "", nuovoElemento = "";
+    let azione = "none", elementi = [], categoria = "", nuovoElemento = "";
 
+    // Determina azione
     if (text.includes("aggiungi")) azione = "add";
     else if (text.includes("modifica") || text.includes("cambia")) azione = "edit";
     else if (text.includes("elimina") || text.includes("rimuovi")) azione = "delete";
     else if (text.includes("segna") || text.includes("completato")) azione = "check";
+    else if (text.includes("crea categoria")) azione = "createCategory";
 
-    // semplice regex per catturare elemento e categoria
-    const match = text.match(/(?:aggiungi|modifica|elimina|segna).*?(.+?) (?:alla categoria|in) (.+)/);
-    if (match) {
-        elemento = match[1].trim();
-        categoria = match[2].trim();
+    // Parsing per "aggiungi X, Y e Z alla categoria C"
+    const addMatch = text.match(/aggiungi (.+?) (?:alla categoria|in) (.+)/);
+    if (addMatch) {
+        elementi = addMatch[1].split(/\s*,\s*|\se\s/).map(s => s.trim());
+        categoria = addMatch[2].trim();
     }
 
-    return { azione, elemento, categoria, nuovoElemento };
+    // Parsing per edit: "modifica X in Y in C"
+    const editMatch = text.match(/(?:modifica|cambia) (.+?) in (.+?) (?:alla categoria|in) (.+)/);
+    if (editMatch) {
+        elementi = [editMatch[1].trim()];
+        nuovoElemento = editMatch[2].trim();
+        categoria = editMatch[3].trim();
+    }
+
+    // Parsing per delete/check: "elimina X in C" o "segna X in C"
+    const delCheckMatch = text.match(/(?:elimina|rimuovi|segna|completato) (.+?) (?:alla categoria|in) (.+)/);
+    if (delCheckMatch) {
+        elementi = [delCheckMatch[1].trim()];
+        categoria = delCheckMatch[2].trim();
+    }
+
+    // Parsing per creare categoria
+    const createMatch = text.match(/crea categoria (.+)/);
+    if (createMatch) {
+        categoria = createMatch[1].trim();
+    }
+
+    return { azione, elementi, categoria, nuovoElemento };
 }
 
 // ==================== FUNZIONE PRINCIPALE VOICE COMMAND ====================
 async function handleVoiceCommand(recognizedText) {
-    console.log("Riconosciuto:", recognizedText);
-
-    // Usa il parsing testuale invece di OpenAI JSON
-    const { azione, elemento, categoria, nuovoElemento } = parseTextCommand(recognizedText);
+    const { azione, elementi, categoria, nuovoElemento } = parseTextCommand(recognizedText);
 
     if (azione === "none") {
         showNotification("Comando non riconosciuto!");
         return;
     }
 
-    switch (azione) {
-        case "add":
-            await addItemVoice(elemento, categoria);
-            break;
-        case "edit":
-            await editItemVoice(elemento, nuovoElemento, categoria);
-            break;
-        case "delete":
-            await deleteItemVoice(elemento, categoria);
-            break;
-        case "check":
-            await checkItemVoice(elemento, categoria);
-            break;
+    if (azione === "createCategory") {
+        if (!categories[categoria]) {
+            categories[categoria] = { name: categoria, items: {} };
+            await saveCategoryToFirebase(categoria);
+            showNotification(`Categoria "${categoria}" creata!`);
+        } else {
+            showNotification(`Categoria "${categoria}" già esiste!`);
+        }
+        return;
+    }
+
+    for (const elemento of elementi) {
+        switch (azione) {
+            case "add":
+                await addItemVoice(elemento, categoria);
+                break;
+            case "edit":
+                await editItemVoice(elemento, nuovoElemento, categoria);
+                break;
+            case "delete":
+                await deleteItemVoice(elemento, categoria);
+                break;
+            case "check":
+                await checkItemVoice(elemento, categoria);
+                break;
+        }
     }
 }
 
@@ -523,7 +548,6 @@ async function addItemVoice(elemento, categoria) {
 
     await saveItemToFirebase(categoria, newItem);
     showNotification(`Elemento "${elemento}" aggiunto alla categoria "${categoria}"!`);
-    renderCategories();
 }
 
 async function editItemVoice(elemento, nuovoElemento, categoria) {
@@ -535,7 +559,6 @@ async function editItemVoice(elemento, nuovoElemento, categoria) {
     item.text = nuovoElemento;
     await updateItemInFirebase(categoria, item.id, { text: nuovoElemento });
     showNotification(`Elemento "${elemento}" modificato in "${nuovoElemento}"`);
-    renderCategories();
 }
 
 async function deleteItemVoice(elemento, categoria) {
@@ -547,7 +570,6 @@ async function deleteItemVoice(elemento, categoria) {
     delete categories[categoria].items[item.id];
     await deleteItemFromFirebase(categoria, item.id);
     showNotification(`Elemento "${elemento}" eliminato da "${categoria}"`);
-    renderCategories();
 }
 
 async function checkItemVoice(elemento, categoria) {
@@ -560,12 +582,7 @@ async function checkItemVoice(elemento, categoria) {
     item.completedAt = item.completed ? Date.now() : null;
     await saveItemToFirebase(categoria, item);
     showNotification(`Elemento "${elemento}" marcato come ${item.completed ? 'completato' : 'non completato'}`);
-    renderCategories();
 }
-
-// ==================== ESEMPIO DI UTILIZZO ====================
-// handleVoiceCommand("aggiungi banane alla categoria frutta");
-// handleVoiceCommand("segna mela in frutta");
 
 // ==================== ESPOSIZIONE FUNZIONI GLOBALI ====================
 window.addCategory = addCategory;

@@ -1,50 +1,38 @@
-exports.handler = async function(event, context) {
-  try {
-    const { text } = JSON.parse(event.body || '{}');
-    if (!text) {
-      return {
-        statusCode: 400,
-        body: JSON.stringify({ error: 'Testo mancante' })
-      };
-    }
+const { text } = JSON.parse(event.body || '{}');
 
-    // Chiamata a OpenAI con fetch nativo
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
+const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${process.env.OPENAI_KEY}`
-      },
-      body: JSON.stringify({
+    },
+    body: JSON.stringify({
         model: "gpt-4",
         messages: [
-          { role: "system", content: "Sei un assistente che traduce comandi vocali italiani in JSON azione-elemento-categoria. Rispondi SOLO con JSON valido." },
-          { role: "user", content: text }
+            { role: "system", content: "Sei un assistente che traduce comandi vocali italiani in JSON. Rispondi **solo** con JSON valido, sempre così: {\"azione\":\"add|edit|delete|check\",\"elemento\":\"...\",\"categoria\":\"...\",\"nuovoElemento\":\"...\"}" },
+            { role: "user", content: text }
         ],
         temperature: 0
-      })
-    });
+    })
+});
 
-    const data = await response.json();
-    const gptText = data.choices?.[0]?.message?.content || '';
+const data = await response.json();
+let gptText = data.choices?.[0]?.message?.content || '';
 
-    let parsed = null;
-    try {
-      parsed = JSON.parse(gptText);
-    } catch (err) {
-      parsed = { raw: gptText };
+// Assicuriamoci che ci sia sempre un JSON valido
+let parsed;
+try {
+    parsed = JSON.parse(gptText);
+    // Controlla che abbia almeno azione ed elemento
+    if (!parsed.azione || !parsed.elemento) {
+        parsed = { azione: "none", elemento: "", categoria: "", nuovoElemento: "" };
     }
+} catch (err) {
+    // fallback
+    parsed = { azione: "none", elemento: "", categoria: "", nuovoElemento: "" };
+}
 
-    return {
-      statusCode: 200,
-      body: JSON.stringify(parsed)
-    };
-
-  } catch (err) {
-    console.error(err);
-    return {
-      statusCode: 500,
-      body: JSON.stringify({ error: err.message })
-    };
-  }
+return {
+    statusCode: 200,
+    body: JSON.stringify(parsed)
 };

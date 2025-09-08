@@ -470,6 +470,60 @@ async function parseCommandWithServer(text) {
     }
 }
 
+function addItemVoice(elemento, categoria) {
+    // Se la categoria non esiste, la crea
+    if (!categories[categoria]) {
+        categories[categoria] = { name: categoria, items: {} };
+        saveCategoryToFirebase(categoria);
+        showNotification(`Categoria "${categoria}" creata automaticamente!`);
+    }
+
+    const newItem = {
+        id: Date.now().toString(),
+        text: elemento,
+        completed: false,
+        createdAt: Date.now(),
+        completedAt: null
+    };
+
+    if (!categories[categoria].items) categories[categoria].items = {};
+    categories[categoria].items[newItem.id] = newItem;
+    saveItemToFirebase(categoria, newItem);
+    showNotification(`Elemento "${elemento}" aggiunto alla categoria "${categoria}"!`);
+    renderCategories();
+}
+
+function editItemVoice(elemento, nuovoElemento, categoria) {
+    if (!categories[categoria]) return showNotification(`Categoria "${categoria}" non esiste`);
+    const item = Object.values(categories[categoria].items).find(i => i.text === elemento);
+    if (!item) return showNotification(`Elemento "${elemento}" non trovato in "${categoria}"`);
+    item.text = nuovoElemento;
+    updateItemInFirebase(categoria, item.id, { text: nuovoElemento });
+    showNotification(`Elemento "${elemento}" modificato in "${nuovoElemento}"`);
+    renderCategories();
+}
+
+function deleteItemVoice(elemento, categoria) {
+    if (!categories[categoria]) return showNotification(`Categoria "${categoria}" non esiste`);
+    const item = Object.values(categories[categoria].items).find(i => i.text === elemento);
+    if (!item) return showNotification(`Elemento "${elemento}" non trovato in "${categoria}"`);
+    delete categories[categoria].items[item.id];
+    deleteItemFromFirebase(categoria, item.id);
+    showNotification(`Elemento "${elemento}" eliminato da "${categoria}"`);
+    renderCategories();
+}
+
+function checkItemVoice(elemento, categoria) {
+    if (!categories[categoria]) return showNotification(`Categoria "${categoria}" non esiste`);
+    const item = Object.values(categories[categoria].items).find(i => i.text === elemento);
+    if (!item) return showNotification(`Elemento "${elemento}" non trovato in "${categoria}"`);
+    item.completed = !item.completed;
+    item.completedAt = item.completed ? Date.now() : null;
+    saveItemToFirebase(categoria, item);
+    showNotification(`Elemento "${elemento}" marcato come ${item.completed ? 'completato' : 'non completato'}`);
+    renderCategories();
+}
+
 // ==================== ESPOSIZIONE FUNZIONI GLOBALI ====================
 window.addCategory = addCategory;
 window.deleteCategory = deleteCategory;

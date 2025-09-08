@@ -19,9 +19,14 @@ exports.handler = async function(event, context) {
     });
 
     const data = await response.json();
+    const gptText = data.choices[0].message.content;
+
+    // Parse JSON prima di inviarlo al frontend
+    const parsedJSON = JSON.parse(gptText);
+
     return {
       statusCode: 200,
-      body: JSON.stringify(data)
+      body: JSON.stringify(parsedJSON)
     };
 
   } catch (err) {

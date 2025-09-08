@@ -2,29 +2,6 @@ export async function handler(event, context) {
   try {
     const { text } = JSON.parse(event.body || '{}');
 
-    // Prompt ottimizzato per OpenAI
-    const systemPrompt = `
-Sei un assistente che traduce comandi vocali italiani in JSON. 
-Rispondi **solo** con JSON valido, senza testo extra, senza spiegazioni.
-Il JSON deve sempre avere queste proprietà: 
-{
-  "azione": "add|edit|delete|check|none",
-  "elemento": "...",
-  "categoria": "...",
-  "nuovoElemento": "..."
-}
-Regole:
-- "add" = aggiungere elemento
-- "edit" = modificare elemento
-- "delete" = eliminare elemento
-- "check" = segnare elemento completato/non completato
-- "none" = nessuna azione valida rilevata
-- Se il comando non è chiaro o mancano informazioni, usa "" per i campi vuoti e azione "none"
-- Sempre minuscolo
-- Esempio: input: "aggiungi banane alla categoria cipolle" → 
-{"azione":"add","elemento":"banane","categoria":"cipolle","nuovoElemento":""}
-`;
-
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -34,7 +11,7 @@ Regole:
       body: JSON.stringify({
         model: "gpt-4",
         messages: [
-          { role: "system", content: systemPrompt },
+          { role: "system", content: "Sei un assistente che traduce comandi vocali italiani in JSON. Rispondi **solo** con JSON valido, senza testo aggiuntivo, nel formato: {\"azione\":\"add|edit|delete|check\",\"elemento\":\"...\",\"categoria\":\"...\",\"nuovoElemento\":\"...\"}" },
           { role: "user", content: text }
         ],
         temperature: 0
@@ -44,9 +21,13 @@ Regole:
     const data = await response.json();
     let gptText = data.choices?.[0]?.message?.content || '';
 
+    // PULIZIA DEL TESTO: estrai il JSON da eventuale testo extra
     let parsed;
     try {
-      parsed = JSON.parse(gptText);
+      const match = gptText.match(/\{.*\}/s); // prende solo ciò che è tra { }
+      if (match) parsed = JSON.parse(match[0]);
+      else parsed = { azione: "none", elemento: "", categoria: "", nuovoElemento: "" };
+
       if (!parsed.azione || !parsed.elemento) {
         parsed = { azione: "none", elemento: "", categoria: "", nuovoElemento: "" };
       }

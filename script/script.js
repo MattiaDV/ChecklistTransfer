@@ -454,7 +454,7 @@ if (SpeechRecognition) {
 // ==================== FUNZIONE CHE CHIAMA LA NETLIFY FUNCTION ====================
 async function parseCommandWithServer(text) {
     try {
-        const res = await fetch('/.netlify/functions/parseCommand.js', {
+        const res = await fetch('https://checklisttransfer.netlify.app/.netlify/functions/parseCommand', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ text })

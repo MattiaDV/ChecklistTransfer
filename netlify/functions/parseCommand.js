@@ -11,7 +11,7 @@ export async function handler(event, context) {
       body: JSON.stringify({
         model: "gpt-4",
         messages: [
-          { role: "system", content: "Sei un assistente che traduce comandi vocali italiani in JSON. Rispondi **solo** con JSON valido, senza testo aggiuntivo, nel formato: {\"azione\":\"add|edit|delete|check\",\"elemento\":\"...\",\"categoria\":\"...\",\"nuovoElemento\":\"...\"}" },
+          { role: "system", content: "Sei un assistente che traduce comandi vocali italiani in JSON. Rispondi **solo** con JSON valido, sempre così: {\"azione\":\"add|edit|delete|check\",\"elemento\":\"...\",\"categoria\":\"...\",\"nuovoElemento\":\"...\"}" },
           { role: "user", content: text }
         ],
         temperature: 0
@@ -21,13 +21,15 @@ export async function handler(event, context) {
     const data = await response.json();
     let gptText = data.choices?.[0]?.message?.content || '';
 
-    // PULIZIA DEL TESTO: estrai il JSON da eventuale testo extra
+    // ==================== ESTRAZIONE JSON ====================
     let parsed;
     try {
-      const match = gptText.match(/\{.*\}/s); // prende solo ciò che è tra { }
+      // Prende tutto tra { ... } dal testo di OpenAI
+      const match = gptText.match(/\{.*\}/s);
       if (match) parsed = JSON.parse(match[0]);
       else parsed = { azione: "none", elemento: "", categoria: "", nuovoElemento: "" };
 
+      // fallback se JSON non contiene campi essenziali
       if (!parsed.azione || !parsed.elemento) {
         parsed = { azione: "none", elemento: "", categoria: "", nuovoElemento: "" };
       }

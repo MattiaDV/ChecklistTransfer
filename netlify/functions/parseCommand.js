@@ -1,5 +1,3 @@
-import fetch from 'node-fetch'; // se usi Node 18+ puoi anche rimuoverlo
-
 export async function handler(event, context) {
   try {
     const { text } = JSON.parse(event.body || '{}');
@@ -13,7 +11,7 @@ export async function handler(event, context) {
       body: JSON.stringify({
         model: "gpt-4",
         messages: [
-          { role: "system", content: "Sei un assistente che traduce comandi vocali italiani in JSON. Rispondi **solo** con JSON valido, sempre così: {\"azione\":\"add|edit|delete|check\",\"elemento\":\"...\",\"categoria\":\"...\",\"nuovoElemento\":\"...\"}" },
+          { role: "system", content: "Sei un assistente che traduce comandi vocali italiani in JSON. Rispondi solo con JSON valido: {\"azione\":\"add|edit|delete|check\",\"elemento\":\"...\",\"categoria\":\"...\",\"nuovoElemento\":\"...\"}" },
           { role: "user", content: text }
         ],
         temperature: 0
@@ -29,7 +27,7 @@ export async function handler(event, context) {
       if (!parsed.azione || !parsed.elemento) {
         parsed = { azione: "none", elemento: "", categoria: "", nuovoElemento: "" };
       }
-    } catch (err) {
+    } catch {
       parsed = { azione: "none", elemento: "", categoria: "", nuovoElemento: "" };
     }
 

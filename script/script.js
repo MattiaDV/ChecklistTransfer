@@ -461,20 +461,30 @@ async function parseCommandWithServer(text) {
         });
         const data = await res.json();
 
-        // Il server risponde con JSON già pronto { azione, elemento, categoria, nuovoElemento }
-        return data;
+        // Se il server non ritorna un JSON valido con azione-elemento-categoria
+        if (!data.azione || !data.elemento) {
+            console.warn('JSON incompleto dal server:', data);
+            return null;
+        }
 
+        return data;
     } catch (err) {
         console.error(err);
         return null;
     }
 }
 
-function addItemVoice(elemento, categoria) {
-    // Se la categoria non esiste, la crea
+function normalizeText(text) {
+    return text?.trim().toLowerCase();
+}
+
+async function addItemVoice(elemento, categoria) {
+    elemento = normalizeText(elemento);
+    categoria = normalizeText(categoria);
+
     if (!categories[categoria]) {
         categories[categoria] = { name: categoria, items: {} };
-        saveCategoryToFirebase(categoria);
+        await saveCategoryToFirebase(categoria);
         showNotification(`Categoria "${categoria}" creata automaticamente!`);
     }
 
@@ -486,40 +496,57 @@ function addItemVoice(elemento, categoria) {
         completedAt: null
     };
 
-    if (!categories[categoria].items) categories[categoria].items = {};
+    categories[categoria].items = categories[categoria].items || {};
     categories[categoria].items[newItem.id] = newItem;
-    saveItemToFirebase(categoria, newItem);
+
+    await saveItemToFirebase(categoria, newItem);
     showNotification(`Elemento "${elemento}" aggiunto alla categoria "${categoria}"!`);
     renderCategories();
 }
 
-function editItemVoice(elemento, nuovoElemento, categoria) {
+async function editItemVoice(elemento, nuovoElemento, categoria) {
+    elemento = normalizeText(elemento);
+    nuovoElemento = normalizeText(nuovoElemento);
+    categoria = normalizeText(categoria);
+
     if (!categories[categoria]) return showNotification(`Categoria "${categoria}" non esiste`);
-    const item = Object.values(categories[categoria].items).find(i => i.text === elemento);
+
+    const item = Object.values(categories[categoria].items).find(i => normalizeText(i.text) === elemento);
     if (!item) return showNotification(`Elemento "${elemento}" non trovato in "${categoria}"`);
+
     item.text = nuovoElemento;
-    updateItemInFirebase(categoria, item.id, { text: nuovoElemento });
+    await updateItemInFirebase(categoria, item.id, { text: nuovoElemento });
     showNotification(`Elemento "${elemento}" modificato in "${nuovoElemento}"`);
     renderCategories();
 }
 
-function deleteItemVoice(elemento, categoria) {
+async function deleteItemVoice(elemento, categoria) {
+    elemento = normalizeText(elemento);
+    categoria = normalizeText(categoria);
+
     if (!categories[categoria]) return showNotification(`Categoria "${categoria}" non esiste`);
-    const item = Object.values(categories[categoria].items).find(i => i.text === elemento);
+
+    const item = Object.values(categories[categoria].items).find(i => normalizeText(i.text) === elemento);
     if (!item) return showNotification(`Elemento "${elemento}" non trovato in "${categoria}"`);
+
     delete categories[categoria].items[item.id];
-    deleteItemFromFirebase(categoria, item.id);
+    await deleteItemFromFirebase(categoria, item.id);
     showNotification(`Elemento "${elemento}" eliminato da "${categoria}"`);
     renderCategories();
 }
 
-function checkItemVoice(elemento, categoria) {
+async function checkItemVoice(elemento, categoria) {
+    elemento = normalizeText(elemento);
+    categoria = normalizeText(categoria);
+
     if (!categories[categoria]) return showNotification(`Categoria "${categoria}" non esiste`);
-    const item = Object.values(categories[categoria].items).find(i => i.text === elemento);
+
+    const item = Object.values(categories[categoria].items).find(i => normalizeText(i.text) === elemento);
     if (!item) return showNotification(`Elemento "${elemento}" non trovato in "${categoria}"`);
+
     item.completed = !item.completed;
     item.completedAt = item.completed ? Date.now() : null;
-    saveItemToFirebase(categoria, item);
+    await saveItemToFirebase(categoria, item);
     showNotification(`Elemento "${elemento}" marcato come ${item.completed ? 'completato' : 'non completato'}`);
     renderCategories();
 }

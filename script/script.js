@@ -409,140 +409,167 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // ==================== MICROFONO E COMANDI VOCALI ====================
+// ==================== VOCE: PULSANTE + LISTENER ====================
 document.addEventListener('DOMContentLoaded', () => {
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SpeechRecognition) {
-        showNotification('Il tuo browser non supporta i comandi vocali');
-        return;
+  if (!SpeechRecognition) {
+    showNotification('Il tuo browser non supporta i comandi vocali');
+    return;
+  }
+
+  const recognition = new SpeechRecognition();
+  recognition.lang = 'it-IT';
+  recognition.interimResults = false;
+
+  recognition.addEventListener('result', async (e) => {
+    const text = e.results[0][0].transcript.trim();
+    showNotification(`Hai detto: "${text}"`);
+    try {
+      await handleVoiceCommand(text);
+      renderCategories();
+    } catch (err) {
+      console.error(err);
+      showNotification('Errore nell\'eseguire il comando vocale');
     }
+  });
 
-    const recognition = new SpeechRecognition();
-    recognition.lang = 'it-IT';
-    recognition.interimResults = false;
+  // Pulsante flottante microfono
+  const voiceBtn = document.createElement('button');
+  voiceBtn.id = 'voiceBtn';
+  voiceBtn.textContent = '🎤 Comandi Vocali';
+  voiceBtn.style = `
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    z-index: 1000;
+    padding: 10px 14px;
+    background-color: #10b981;
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    font-size: 16px;
+    box-shadow: 0 6px 18px rgba(0,0,0,.15);
+  `;
+  voiceBtn.onclick = () => {
+    recognition.start();
+    showNotification('Parla ora!');
+  };
 
-    recognition.addEventListener('result', e => {
-        const text = e.results[0][0].transcript.toLowerCase().trim();
-        showNotification(`🎤 Hai detto: "${text}"`);
-        handleVoiceCommand(text);
-    });
-
-    // Pulsante microfono
-    const voiceBtn = document.createElement('button');
-    voiceBtn.textContent = '🎤';
-    voiceBtn.title = 'Comandi vocali';
-    voiceBtn.style = `
-        position: fixed;
-        bottom: 20px;
-        right: 20px;
-        z-index: 1000;
-        padding: 15px;
-        background-color: #10b981;
-        color: #fff;
-        border: none;
-        border-radius: 50%;
-        cursor: pointer;
-        font-size: 20px;
-    `;
-    voiceBtn.onclick = () => {
-        recognition.start();
-        showNotification('Parla ora!');
-    };
-    document.body.appendChild(voiceBtn);
+  document.body.appendChild(voiceBtn);
 });
 
-// ==================== PARSING DEL COMANDO ====================
-function parseVoiceCommand(text) {
-    let azione = "";
-    let categoria = "";
-    let elementi = [];
-    let nuovoElemento = "";
+// ==================== PARSING DEL COMANDO VOCALE ====================
+function parseTextCommand(text) {
+  const t = text.toLowerCase().trim();
 
-    if (text.includes("aggiungi")) azione = "add";
-    else if (text.includes("elimina categoria")) azione = "deleteCategory";
-    else if (text.includes("elimina")) azione = "deleteItem";
-    else if (text.includes("modifica")) azione = "editItem";
-    else if (text.includes("segna")) azione = "checkItem";
+  // --- Comandi categoria ---
+  // crea/aggiungi categoria <nome>
+  let m = t.match(/(?:crea|aggiungi)\s+categoria\s+(.+)/);
+  if (m) {
+    return { azione: 'addCategory', elementi: [], categoria: m[1].trim(), nuovoElemento: '' };
+  }
 
-    // Match pattern "alla categoria X" oppure "in X"
-    const match = text.match(/(.+?)(?:alla categoria|nella categoria|in)\s+(.+)/);
-    if (match) {
-        const parteElementi = match[1].replace(/(aggiungi|elimina|modifica|segna)/, "").trim();
-        categoria = match[2].trim();
+  // elimina/cancella/rimuovi categoria <nome>
+  m = t.match(/(?:elimina|cancella|rimuovi)\s+categoria\s+(.+)/);
+  if (m) {
+    return { azione: 'deleteCategory', elementi: [], categoria: m[1].trim(), nuovoElemento: '' };
+  }
 
-        // Se c’è "in [nuovo nome]" → split per edit
-        if (azione === "editItem" && parteElementi.includes(" in ")) {
-            const [oldName, newName] = parteElementi.split(" in ").map(s => s.trim());
-            elementi = [oldName];
-            nuovoElemento = newName;
-        } else {
-            // Split multipli elementi separati da "e" o virgole
-            elementi = parteElementi.split(/\s*,\s*|\s+e\s+/).map(el => el.trim()).filter(Boolean);
-        }
-    }
+  // rinomina/cambia nome categoria <old> in <new>
+  m = t.match(/(?:rinomina|cambia\s+nome\s+(?:alla|della)?\s*categoria)\s+(.+?)\s+(?:in|con)\s+(.+)/);
+  if (m) {
+    return { azione: 'renameCategory', elementi: [], categoria: m[1].trim(), nuovoElemento: m[2].trim() };
+  }
 
-    return { azione, categoria, elementi, nuovoElemento };
+  // --- Edit item: "modifica pere in mele nella/alla categoria frutta"
+  m = t.match(/(?:modifica|cambia)\s+(.+?)\s+(?:in|con)\s+(.+?)\s+(?:alla\s+categoria|nella\s+categoria|in|alla|nella)\s+(.+)/);
+  if (m) {
+    return {
+      azione: 'edit',
+      elementi: [m[1].trim()],
+      categoria: m[3].trim(),
+      nuovoElemento: m[2].trim()
+    };
+  }
+
+  // --- Add/Delete/Check item: "<verbo> <elenco> (alla/nella/in) (categoria) <nome>"
+  m = t.match(/(?:aggiungi|inserisci|metti|elimina|rimuovi|cancella|segna|spunta|completa)\s+(.+?)\s+(?:alla\s+categoria|nella\s+categoria|in|alla|nella)\s+(.+)/);
+  if (m) {
+    const elenco = m[1].trim();
+    const categoria = m[2].trim();
+
+    // Determina l'azione dal verbo
+    let azione = 'none';
+    if (/(?:aggiungi|inserisci|metti)\b/.test(t)) azione = 'add';
+    else if (/(?:elimina|rimuovi|cancella)\b/.test(t)) azione = 'delete';
+    else if (/(?:segna|spunta|completa|deseleziona)\b/.test(t)) azione = 'check';
+
+    // Split elementi:
+    const elementi = splitItems(elenco);
+
+    return { azione, elementi, categoria, nuovoElemento: '' };
+  }
+
+  return { azione: 'none', elementi: [], categoria: '', nuovoElemento: '' };
 }
 
-// ==================== GESTIONE COMANDI ====================
-async function handleVoiceCommand(text) {
-    const { azione, categoria, elementi, nuovoElemento } = parseVoiceCommand(text);
+// Heuristica robusta per splittare più item
+function splitItems(s) {
+  // Se contiene virgole o " e " → split sicuro
+  if (/,/.test(s) || /\se\s/.test(s)) {
+    return s.split(/\s*,\s*|\s+e\s+/)
+            .map(x => x.trim())
+            .filter(Boolean);
+  }
+  // Altrimenti se ci sono >1 parole, splitta per spazi (attenzione: "acqua frizzante" diventa 2 item)
+  const words = s.split(/\s+/).map(w => w.trim()).filter(Boolean);
+  if (words.length > 1) return words;
 
-    switch (azione) {
-        case "add":
-            if (!elementi.length) return showNotification("Nessun elemento da aggiungere");
-            if (!categories[categoria]) addCategory(categoria);
-            for (const el of elementi) {
-                const newItem = {
-                    id: Date.now().toString() + Math.random(),
-                    text: el,
-                    completed: false,
-                    createdAt: Date.now(),
-                    completedAt: null
-                };
-                categories[categoria].items[newItem.id] = newItem;
-                saveItemToFirebase(categoria, newItem);
-            }
-            renderCategories();
-            showNotification(`Aggiunti: ${elementi.join(", ")} in "${categoria}"`);
-            break;
+  return [s.trim()];
+}
 
-        case "deleteCategory":
-            if (!categories[categoria]) return showNotification(`Categoria "${categoria}" non trovata`);
-            deleteCategory(categoria);
-            break;
+// ==================== FUNZIONE PRINCIPALE VOICE COMMAND ====================
+async function handleVoiceCommand(recognizedText) {
+  const { azione, elementi, categoria, nuovoElemento } = parseTextCommand(recognizedText);
 
-        case "deleteItem":
-            if (!categories[categoria]) return showNotification(`Categoria "${categoria}" non trovata`);
-            for (const el of elementi) {
-                const item = Object.values(categories[categoria].items || {}).find(i => i.text.toLowerCase() === el);
-                if (item) deleteItem(categoria, item.id);
-            }
-            renderCategories();
-            break;
+  if (azione === 'none') {
+    showNotification('Comando non riconosciuto!');
+    return;
+  }
 
-        case "editItem":
-            if (!categories[categoria]) return showNotification(`Categoria "${categoria}" non trovata`);
-            const item = Object.values(categories[categoria].items || {}).find(i => i.text.toLowerCase() === elementi[0]);
-            if (item && nuovoElemento) {
-                categories[categoria].items[item.id].text = nuovoElemento;
-                updateItemInFirebase(categoria, item.id, { text: nuovoElemento });
-                renderCategories();
-                showNotification(`"${elementi[0]}" modificato in "${nuovoElemento}"`);
-            }
-            break;
+  switch (azione) {
+    case 'add':
+      for (const el of elementi) await addItemVoice(el, categoria);
+      break;
 
-        case "checkItem":
-            if (!categories[categoria]) return showNotification(`Categoria "${categoria}" non trovata`);
-            for (const el of elementi) {
-                const itemCheck = Object.values(categories[categoria].items || {}).find(i => i.text.toLowerCase() === el);
-                if (itemCheck) toggleItem(categoria, itemCheck.id);
-            }
-            renderCategories();
-            break;
+    case 'delete':
+      for (const el of elementi) await deleteItemVoice(el, categoria);
+      break;
 
-        default:
-            showNotification("❌ Comando non riconosciuto");
-    }
+    case 'check':
+      for (const el of elementi) await checkItemVoice(el, categoria);
+      break;
+
+    case 'edit':
+      if (!nuovoElemento) return showNotification('Devi dire "modifica <vecchio> in <nuovo>"');
+      await editItemVoice(elementi[0], nuovoElemento, categoria);
+      break;
+
+    // ---- Categorie ----
+    case 'addCategory':
+      await addCategoryVoice(categoria);
+      break;
+
+    case 'deleteCategory':
+      await deleteCategoryVoice(categoria);
+      break;
+
+    case 'renameCategory':
+      await editCategoryVoice(categoria, nuovoElemento); // (oldName, newName)
+      break;
+  }
+
+  renderCategories();
 }
 
 // ==================== ESPOSIZIONE FUNZIONI GLOBALI ====================
@@ -555,3 +582,5 @@ window.logout = logout;
 window.editCategory = editCategory;
 window.updateItemInFirebase = updateItemInFirebase;
 window.editItem = editItem;
+// Supporto Web Speech API (Chrome / Edge / Safari)
+const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition || null;

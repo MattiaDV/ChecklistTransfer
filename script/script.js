@@ -445,42 +445,23 @@ if (SpeechRecognition) {
 
 // ==================== FUNZIONE DI PARSING DEL TESTO ====================
 function parseTextCommand(text) {
-    text = text.toLowerCase();
+    text = text.toLowerCase().trim();
     let azione = "none", elementi = [], categoria = "", nuovoElemento = "";
 
-    // Determina azione
     if (text.includes("aggiungi")) azione = "add";
     else if (text.includes("modifica") || text.includes("cambia")) azione = "edit";
     else if (text.includes("elimina") || text.includes("rimuovi")) azione = "delete";
     else if (text.includes("segna") || text.includes("completato")) azione = "check";
-    else if (text.includes("crea categoria")) azione = "createCategory";
 
-    // Parsing per "aggiungi X, Y e Z alla categoria C"
-    const addMatch = text.match(/aggiungi (.+?) (?:alla categoria|in) (.+)/);
-    if (addMatch) {
-        elementi = addMatch[1].split(/\s*,\s*|\se\s/).map(s => s.trim());
-        categoria = addMatch[2].trim();
-    }
+    // regex per catturare la parte degli elementi e della categoria
+    const match = text.match(/(?:aggiungi|modifica|elimina|segna)\s+(.+?)\s+(?:alla categoria|in)\s+(.+)/);
+    if (match) {
+        const elementiRaw = match[1].trim();
 
-    // Parsing per edit: "modifica X in Y in C"
-    const editMatch = text.match(/(?:modifica|cambia) (.+?) in (.+?) (?:alla categoria|in) (.+)/);
-    if (editMatch) {
-        elementi = [editMatch[1].trim()];
-        nuovoElemento = editMatch[2].trim();
-        categoria = editMatch[3].trim();
-    }
+        // separa elementi per virgola o "e"
+        elementi = elementiRaw.split(/,| e /).map(el => el.trim()).filter(el => el.length > 0);
 
-    // Parsing per delete/check: "elimina X in C" o "segna X in C"
-    const delCheckMatch = text.match(/(?:elimina|rimuovi|segna|completato) (.+?) (?:alla categoria|in) (.+)/);
-    if (delCheckMatch) {
-        elementi = [delCheckMatch[1].trim()];
-        categoria = delCheckMatch[2].trim();
-    }
-
-    // Parsing per creare categoria
-    const createMatch = text.match(/crea categoria (.+)/);
-    if (createMatch) {
-        categoria = createMatch[1].trim();
+        categoria = match[2].trim();
     }
 
     return { azione, elementi, categoria, nuovoElemento };
@@ -490,37 +471,31 @@ function parseTextCommand(text) {
 async function handleVoiceCommand(recognizedText) {
     const { azione, elementi, categoria, nuovoElemento } = parseTextCommand(recognizedText);
 
-    if (azione === "none") {
+    if (azione === "none" || elementi.length === 0) {
         showNotification("Comando non riconosciuto!");
         return;
     }
 
-    if (azione === "createCategory") {
-        if (!categories[categoria]) {
-            categories[categoria] = { name: categoria, items: {} };
-            await saveCategoryToFirebase(categoria);
-            showNotification(`Categoria "${categoria}" creata!`);
-        } else {
-            showNotification(`Categoria "${categoria}" già esiste!`);
-        }
-        return;
-    }
-
-    for (const elemento of elementi) {
-        switch (azione) {
-            case "add":
+    switch (azione) {
+        case "add":
+            for (const elemento of elementi) {
                 await addItemVoice(elemento, categoria);
-                break;
-            case "edit":
-                await editItemVoice(elemento, nuovoElemento, categoria);
-                break;
-            case "delete":
+            }
+            break;
+        case "edit":
+            // Per edit dobbiamo gestire solo un elemento alla volta
+            await editItemVoice(elementi[0], nuovoElemento, categoria);
+            break;
+        case "delete":
+            for (const elemento of elementi) {
                 await deleteItemVoice(elemento, categoria);
-                break;
-            case "check":
+            }
+            break;
+        case "check":
+            for (const elemento of elementi) {
                 await checkItemVoice(elemento, categoria);
-                break;
-        }
+            }
+            break;
     }
 }
 

@@ -558,6 +558,15 @@ async function deleteCategoryVoice(categoria) {
     renderCategories();
 }
 
+// Bottone per attivare la voce
+const voiceBtn = document.createElement('button');
+voiceBtn.textContent = '🎤 Comandi Vocali';
+voiceBtn.onclick = () => {
+    recognition.start();
+    showNotification('Parla ora!');
+};
+document.body.prepend(voiceBtn);
+
 // ==================== ESPOSIZIONE FUNZIONI GLOBALI ====================
 window.addCategory = addCategory;
 window.deleteCategory = deleteCategory;

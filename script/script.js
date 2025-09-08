@@ -438,16 +438,16 @@ document.addEventListener('DOMContentLoaded', () => {
   voiceBtn.textContent = '🎤';
   voiceBtn.style = `
     position: fixed;
-    bottom: 20px;
+    bottom: 40px;
     right: 20px;
     z-index: 1000;
-    padding: 10px 14px;
+    padding: 20px;
     background-color: #2563eb;
     color: #fff;
     border: none;
-    border-radius: 10px;
+    border-radius: 50%;
     cursor: pointer;
-    font-size: 16px;
+    font-size: 20px;
     box-shadow: 0 6px 18px rgba(0,0,0,.15);
   `;
   voiceBtn.onclick = () => {

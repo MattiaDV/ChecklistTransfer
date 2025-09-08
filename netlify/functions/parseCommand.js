@@ -1,6 +1,4 @@
-import fetch from 'node-fetch';
-
-export async function handler(event, context) {
+exports.handler = async function(event, context) {
   try {
     const { text } = JSON.parse(event.body);
 
@@ -8,7 +6,7 @@ export async function handler(event, context) {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`
+        'Authorization': `Bearer ${process.env.OPENAI_KEY}`
       },
       body: JSON.stringify({
         model: "gpt-4",
@@ -27,9 +25,10 @@ export async function handler(event, context) {
     };
 
   } catch (err) {
+    console.error(err);
     return {
       statusCode: 500,
       body: JSON.stringify({ error: err.message })
     };
   }
-}
+};

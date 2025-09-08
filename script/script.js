@@ -408,193 +408,141 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
+// ==================== MICROFONO E COMANDI VOCALI ====================
 document.addEventListener('DOMContentLoaded', () => {
-    if (SpeechRecognition) {
-        const recognition = new SpeechRecognition();
-        recognition.lang = 'it-IT';
-        recognition.interimResults = false;
-
-        recognition.addEventListener('result', async e => {
-            const text = e.results[0][0].transcript.toLowerCase().trim();
-            showNotification(`Hai detto: "${text}"`);
-            await handleVoiceCommand(text);
-        });
-
-        // Creiamo il pulsante
-        const voiceBtn = document.createElement('button');
-        voiceBtn.textContent = '🎤 Comandi Vocali';
-        voiceBtn.style = `
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            z-index: 1000;
-            padding: 10px 15px;
-            background-color: #10b981;
-            color: #fff;
-            border: none;
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 16px;
-        `;
-        voiceBtn.onclick = () => {
-            recognition.start();
-            showNotification('Parla ora!');
-        };
-
-        document.body.appendChild(voiceBtn);
-    } else {
-        showNotification('Il tuo browser non supporta il riconoscimento vocale');
-    }
-});
-
-// ==================== PARSING DEL COMANDO VOCALE ====================
-function parseTextCommand(text) {
-    text = text.toLowerCase().trim();
-    let azione = "none", elementi = [], categoria = "", nuovoElemento = "";
-
-    if (text.includes("aggiungi")) azione = "add";
-    else if (text.includes("modifica") || text.includes("cambia")) azione = "edit";
-    else if (text.includes("elimina") || text.includes("rimuovi")) azione = "delete";
-    else if (text.includes("segna") || text.includes("completato")) azione = "check";
-
-    // regex per catturare elementi e categoria
-    const match = text.match(/(?:aggiungi|modifica|elimina|segna)\s+(.+?)\s+(?:alla categoria|in)\s+(.+)/);
-    if (match) {
-        const elementiRaw = match[1].trim();
-
-        // Separiamo per virgola o "e", ignorando eventuali spazi
-        elementi = elementiRaw.split(/\s*,\s*|\s+e\s+/).map(el => el.trim()).filter(el => el.length > 0);
-
-        categoria = match[2].trim();
-    }
-
-    return { azione, elementi, categoria, nuovoElemento };
-}
-
-// ==================== FUNZIONE PRINCIPALE VOICE COMMAND ====================
-async function handleVoiceCommand(recognizedText) {
-    const { azione, elementi, categoria, nuovoElemento } = parseTextCommand(recognizedText);
-
-    if (azione === "none" || (elementi.length === 0 && azione !== "editCategory" && azione !== "deleteCategory")) {
-        showNotification("Comando non riconosciuto!");
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+        showNotification('Il tuo browser non supporta i comandi vocali');
         return;
     }
 
+    const recognition = new SpeechRecognition();
+    recognition.lang = 'it-IT';
+    recognition.interimResults = false;
+
+    recognition.addEventListener('result', e => {
+        const text = e.results[0][0].transcript.toLowerCase().trim();
+        showNotification(`🎤 Hai detto: "${text}"`);
+        handleVoiceCommand(text);
+    });
+
+    // Pulsante microfono
+    const voiceBtn = document.createElement('button');
+    voiceBtn.textContent = '🎤';
+    voiceBtn.title = 'Comandi vocali';
+    voiceBtn.style = `
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        z-index: 1000;
+        padding: 15px;
+        background-color: #10b981;
+        color: #fff;
+        border: none;
+        border-radius: 50%;
+        cursor: pointer;
+        font-size: 20px;
+    `;
+    voiceBtn.onclick = () => {
+        recognition.start();
+        showNotification('Parla ora!');
+    };
+    document.body.appendChild(voiceBtn);
+});
+
+// ==================== PARSING DEL COMANDO ====================
+function parseVoiceCommand(text) {
+    let azione = "";
+    let categoria = "";
+    let elementi = [];
+    let nuovoElemento = "";
+
+    if (text.includes("aggiungi")) azione = "add";
+    else if (text.includes("elimina categoria")) azione = "deleteCategory";
+    else if (text.includes("elimina")) azione = "deleteItem";
+    else if (text.includes("modifica")) azione = "editItem";
+    else if (text.includes("segna")) azione = "checkItem";
+
+    // Match pattern "alla categoria X" oppure "in X"
+    const match = text.match(/(.+?)(?:alla categoria|nella categoria|in)\s+(.+)/);
+    if (match) {
+        const parteElementi = match[1].replace(/(aggiungi|elimina|modifica|segna)/, "").trim();
+        categoria = match[2].trim();
+
+        // Se c’è "in [nuovo nome]" → split per edit
+        if (azione === "editItem" && parteElementi.includes(" in ")) {
+            const [oldName, newName] = parteElementi.split(" in ").map(s => s.trim());
+            elementi = [oldName];
+            nuovoElemento = newName;
+        } else {
+            // Split multipli elementi separati da "e" o virgole
+            elementi = parteElementi.split(/\s*,\s*|\s+e\s+/).map(el => el.trim()).filter(Boolean);
+        }
+    }
+
+    return { azione, categoria, elementi, nuovoElemento };
+}
+
+// ==================== GESTIONE COMANDI ====================
+async function handleVoiceCommand(text) {
+    const { azione, categoria, elementi, nuovoElemento } = parseVoiceCommand(text);
+
     switch (azione) {
         case "add":
-            for (const elemento of elementi) {
-                await addItemVoice(elemento, categoria);
+            if (!elementi.length) return showNotification("Nessun elemento da aggiungere");
+            if (!categories[categoria]) addCategory(categoria);
+            for (const el of elementi) {
+                const newItem = {
+                    id: Date.now().toString() + Math.random(),
+                    text: el,
+                    completed: false,
+                    createdAt: Date.now(),
+                    completedAt: null
+                };
+                categories[categoria].items[newItem.id] = newItem;
+                saveItemToFirebase(categoria, newItem);
+            }
+            renderCategories();
+            showNotification(`Aggiunti: ${elementi.join(", ")} in "${categoria}"`);
+            break;
+
+        case "deleteCategory":
+            if (!categories[categoria]) return showNotification(`Categoria "${categoria}" non trovata`);
+            deleteCategory(categoria);
+            break;
+
+        case "deleteItem":
+            if (!categories[categoria]) return showNotification(`Categoria "${categoria}" non trovata`);
+            for (const el of elementi) {
+                const item = Object.values(categories[categoria].items || {}).find(i => i.text.toLowerCase() === el);
+                if (item) deleteItem(categoria, item.id);
+            }
+            renderCategories();
+            break;
+
+        case "editItem":
+            if (!categories[categoria]) return showNotification(`Categoria "${categoria}" non trovata`);
+            const item = Object.values(categories[categoria].items || {}).find(i => i.text.toLowerCase() === elementi[0]);
+            if (item && nuovoElemento) {
+                categories[categoria].items[item.id].text = nuovoElemento;
+                updateItemInFirebase(categoria, item.id, { text: nuovoElemento });
+                renderCategories();
+                showNotification(`"${elementi[0]}" modificato in "${nuovoElemento}"`);
             }
             break;
-        case "edit":
-            // per edit gestiamo un solo elemento alla volta
-            await editItemVoice(elementi[0], nuovoElemento, categoria);
-            break;
-        case "delete":
-            for (const elemento of elementi) {
-                await deleteItemVoice(elemento, categoria);
+
+        case "checkItem":
+            if (!categories[categoria]) return showNotification(`Categoria "${categoria}" non trovata`);
+            for (const el of elementi) {
+                const itemCheck = Object.values(categories[categoria].items || {}).find(i => i.text.toLowerCase() === el);
+                if (itemCheck) toggleItem(categoria, itemCheck.id);
             }
+            renderCategories();
             break;
-        case "check":
-            for (const elemento of elementi) {
-                await checkItemVoice(elemento, categoria);
-            }
-            break;
+
+        default:
+            showNotification("❌ Comando non riconosciuto");
     }
-}
-
-// ==================== FUNZIONI DI GESTIONE ELEMENTI ====================
-async function addItemVoice(elemento, categoria) {
-    if (!categories[categoria]) {
-        categories[categoria] = { name: categoria, items: {} };
-        await saveCategoryToFirebase(categoria);
-        showNotification(`Categoria "${categoria}" creata automaticamente!`);
-    }
-
-    const newItem = {
-        id: Date.now().toString(),
-        text: elemento,
-        completed: false,
-        createdAt: Date.now(),
-        completedAt: null
-    };
-
-    categories[categoria].items = categories[categoria].items || {};
-    categories[categoria].items[newItem.id] = newItem;
-    await saveItemToFirebase(categoria, newItem);
-    showNotification(`Elemento "${elemento}" aggiunto alla categoria "${categoria}"!`);
-    renderCategories();
-}
-
-async function editItemVoice(elemento, nuovoElemento, categoria) {
-    if (!categories[categoria]) return showNotification(`Categoria "${categoria}" non esiste`);
-    const item = Object.values(categories[categoria].items).find(i => i.text === elemento);
-    if (!item) return showNotification(`Elemento "${elemento}" non trovato in "${categoria}"`);
-
-    item.text = nuovoElemento;
-    await updateItemInFirebase(categoria, item.id, { text: nuovoElemento });
-    showNotification(`Elemento "${elemento}" modificato in "${nuovoElemento}"`);
-    renderCategories();
-}
-
-async function deleteItemVoice(elemento, categoria) {
-    if (!categories[categoria]) return showNotification(`Categoria "${categoria}" non esiste`);
-    const item = Object.values(categories[categoria].items).find(i => i.text === elemento);
-    if (!item) return showNotification(`Elemento "${elemento}" non trovato in "${categoria}"`);
-
-    delete categories[categoria].items[item.id];
-    await deleteItemFromFirebase(categoria, item.id);
-    showNotification(`Elemento "${elemento}" eliminato da "${categoria}"`);
-    renderCategories();
-}
-
-async function checkItemVoice(elemento, categoria) {
-    if (!categories[categoria]) return showNotification(`Categoria "${categoria}" non esiste`);
-    const item = Object.values(categories[categoria].items).find(i => i.text === elemento);
-    if (!item) return showNotification(`Elemento "${elemento}" non trovato in "${categoria}"`);
-
-    item.completed = !item.completed;
-    item.completedAt = item.completed ? Date.now() : null;
-    await saveItemToFirebase(categoria, item);
-    showNotification(`Elemento "${elemento}" marcato come ${item.completed ? 'completato' : 'non completato'}`);
-    renderCategories();
-}
-
-// ==================== FUNZIONI GESTIONE CATEGORIE ====================
-async function addCategoryVoice(categoria) {
-    if (!categories[categoria]) {
-        categories[categoria] = { name: categoria, items: {} };
-        await saveCategoryToFirebase(categoria);
-        showNotification(`Categoria "${categoria}" creata!`);
-        renderCategories();
-    } else {
-        showNotification(`La categoria "${categoria}" esiste già!`);
-    }
-}
-
-async function editCategoryVoice(oldName, newName) {
-    if (!categories[oldName]) return showNotification(`Categoria "${oldName}" non esiste`);
-    if (categories[newName]) return showNotification(`Categoria "${newName}" esiste già!`);
-
-    categories[newName] = categories[oldName];
-    delete categories[oldName];
-    await updateCategoryInFirebase(oldName, newName);
-    showNotification(`Categoria "${oldName}" rinominata in "${newName}"`);
-    renderCategories();
-}
-
-async function deleteCategoryVoice(categoria) {
-    if (!categories[categoria]) return showNotification(`Categoria "${categoria}" non esiste`);
-    if (!confirm(`Sei sicuro di eliminare la categoria "${categoria}" e tutti i suoi elementi?`)) return;
-
-    const items = Object.keys(categories[categoria].items || {});
-    for (const itemId of items) {
-        await deleteItemFromFirebase(categoria, itemId);
-    }
-    delete categories[categoria];
-    await deleteCategoryFromFirebase(categoria);
-    showNotification(`Categoria "${categoria}" eliminata`);
-    renderCategories();
 }
 
 // ==================== ESPOSIZIONE FUNZIONI GLOBALI ====================

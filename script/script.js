@@ -408,6 +408,45 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
+document.addEventListener('DOMContentLoaded', () => {
+    if (SpeechRecognition) {
+        const recognition = new SpeechRecognition();
+        recognition.lang = 'it-IT';
+        recognition.interimResults = false;
+
+        recognition.addEventListener('result', async e => {
+            const text = e.results[0][0].transcript.toLowerCase().trim();
+            showNotification(`Hai detto: "${text}"`);
+            await handleVoiceCommand(text);
+        });
+
+        // Creiamo il pulsante
+        const voiceBtn = document.createElement('button');
+        voiceBtn.textContent = '🎤 Comandi Vocali';
+        voiceBtn.style = `
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 1000;
+            padding: 10px 15px;
+            background-color: #10b981;
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+        `;
+        voiceBtn.onclick = () => {
+            recognition.start();
+            showNotification('Parla ora!');
+        };
+
+        document.body.appendChild(voiceBtn);
+    } else {
+        showNotification('Il tuo browser non supporta il riconoscimento vocale');
+    }
+});
+
 // ==================== PARSING DEL COMANDO VOCALE ====================
 function parseTextCommand(text) {
     text = text.toLowerCase().trim();
@@ -557,15 +596,6 @@ async function deleteCategoryVoice(categoria) {
     showNotification(`Categoria "${categoria}" eliminata`);
     renderCategories();
 }
-
-// Bottone per attivare la voce
-const voiceBtn = document.createElement('button');
-voiceBtn.textContent = '🎤 Comandi Vocali';
-voiceBtn.onclick = () => {
-    recognition.start();
-    showNotification('Parla ora!');
-};
-document.body.prepend(voiceBtn);
 
 // ==================== ESPOSIZIONE FUNZIONI GLOBALI ====================
 window.addCategory = addCategory;

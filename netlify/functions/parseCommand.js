@@ -11,7 +11,7 @@ export async function handler(event, context) {
       body: JSON.stringify({
         model: "gpt-4",
         messages: [
-          { role: "system", content: "Sei un assistente che traduce comandi vocali italiani in JSON. Rispondi solo con JSON valido: {\"azione\":\"add|edit|delete|check\",\"elemento\":\"...\",\"categoria\":\"...\",\"nuovoElemento\":\"...\"}" },
+          { "role": "system", "content": "Sei un assistente che converte comandi vocali in JSON. Rispondi **solo** con JSON, ecco un esempio: comando 'aggiungi mele alla categoria frutta' -> {\"azione\":\"add\",\"elemento\":\"mele\",\"categoria\":\"frutta\",\"nuovoElemento\":\"\"}. Ora traduci ogni comando che ricevi." },
           { role: "user", content: text }
         ],
         temperature: 0

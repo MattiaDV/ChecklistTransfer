@@ -420,7 +420,7 @@ if (SpeechRecognition) {
         showNotification(`Hai detto: "${text}"`);
 
         // Chiama la funzione Netlify invece di OpenAI direttamente
-        const parsed = await parseCommandWithServer(text);
+        const parsed = parseTextCommand(text);
         if (!parsed) return showNotification("Non ho capito il comando");
 
         const { azione, elemento, categoria, nuovoElemento } = parsed;

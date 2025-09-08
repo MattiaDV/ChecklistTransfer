@@ -435,14 +435,14 @@ document.addEventListener('DOMContentLoaded', () => {
   // Pulsante flottante microfono
   const voiceBtn = document.createElement('button');
   voiceBtn.id = 'voiceBtn';
-  voiceBtn.textContent = '🎤 Comandi Vocali';
+  voiceBtn.textContent = '🎤';
   voiceBtn.style = `
     position: fixed;
     bottom: 20px;
     right: 20px;
     z-index: 1000;
     padding: 10px 14px;
-    background-color: #10b981;
+    background-color: #2563eb;
     color: #fff;
     border: none;
     border-radius: 10px;

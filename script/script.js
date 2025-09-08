@@ -572,6 +572,163 @@ async function handleVoiceCommand(recognizedText) {
   renderCategories();
 }
 
+// ==================== HELPERS + FUNZIONI VOCE (drop-in) ====================
+function _normalize(s) {
+  return (s || '').toString().trim().toLowerCase();
+}
+
+function _findItemByText(categoryName, text) {
+  if (!categories[categoryName] || !categories[categoryName].items) return null;
+  return Object.values(categories[categoryName].items).find(i => _normalize(i.text) === _normalize(text));
+}
+
+// Aggiunge una categoria (voce)
+async function addCategoryVoice(categoria) {
+  if (!currentUser) return showNotification('Devi essere loggato per creare categorie!');
+  categoria = categoria?.trim();
+  if (!categoria) return showNotification('Nome categoria mancante');
+  if (categories[categoria]) {
+    showNotification(`La categoria "${categoria}" esiste già`);
+    return;
+  }
+  categories[categoria] = { name: categoria, items: {} };
+  await saveCategoryToFirebase(categoria);
+  renderCategories();
+  showNotification(`Categoria "${categoria}" creata!`);
+}
+
+// Elimina una categoria (voce)
+async function deleteCategoryVoice(categoria) {
+  if (!currentUser) return showNotification('Devi essere loggato per eliminare categorie!');
+  categoria = categoria?.trim();
+  if (!categoria) return showNotification('Nome categoria mancante');
+  if (!categories[categoria]) return showNotification(`Categoria "${categoria}" non trovata`);
+  // Conferma per sicurezza (puoi rimuoverla se vuoi cancellare senza conferma)
+  if (!confirm(`Eliminare la categoria "${categoria}" e tutti i suoi elementi?`)) return;
+  // Rimuovi tutti gli item su Firebase
+  const items = Object.keys(categories[categoria].items || {});
+  for (const itemId of items) {
+    await deleteItemFromFirebase(categoria, itemId);
+  }
+  // Rimuovi la categoria
+  delete categories[categoria];
+  await deleteCategoryFromFirebase(categoria);
+  renderCategories();
+  showNotification(`Categoria "${categoria}" eliminata`);
+}
+
+// Rinomina categoria (voce)
+async function editCategoryVoice(oldName, newName) {
+  if (!currentUser) return showNotification('Devi essere loggato per modificare categorie!');
+  oldName = (oldName || '').trim();
+  newName = (newName || '').trim();
+  if (!oldName || !newName) return showNotification('Nome vecchio o nuovo mancante');
+  if (!categories[oldName]) return showNotification(`Categoria "${oldName}" non trovata`);
+  if (categories[newName]) return showNotification(`Categoria "${newName}" esiste già`);
+  // Aggiorna localmente e su Firebase
+  categories[newName] = categories[oldName];
+  delete categories[oldName];
+  await updateCategoryInFirebase(oldName, newName);
+  renderCategories();
+  showNotification(`Categoria "${oldName}" rinominata in "${newName}"`);
+}
+
+// Aggiunge un item (voce)
+async function addItemVoice(elemento, categoria) {
+  if (!currentUser) return showNotification('Devi essere loggato per aggiungere elementi!');
+  elemento = (elemento || '').trim();
+  categoria = (categoria || '').trim();
+  if (!elemento || !categoria) return showNotification('Elemento o categoria mancante');
+
+  // se la categoria non esiste la creo
+  if (!categories[categoria]) {
+    categories[categoria] = { name: categoria, items: {} };
+    await saveCategoryToFirebase(categoria);
+  }
+
+  // evita duplicati (match case-insensitive)
+  const existing = _findItemByText(categoria, elemento);
+  if (existing) {
+    showNotification(`"${elemento}" già presente in "${categoria}", salto.`);
+    return;
+  }
+
+  const newItem = {
+    id: `${Date.now()}-${Math.random().toString(36).slice(2,8)}`,
+    text: elemento,
+    completed: false,
+    createdAt: Date.now(),
+    completedAt: null
+  };
+
+  categories[categoria].items = categories[categoria].items || {};
+  categories[categoria].items[newItem.id] = newItem;
+  await saveItemToFirebase(categoria, newItem);
+  renderCategories();
+  showNotification(`"${elemento}" aggiunto a "${categoria}"`);
+}
+
+// Modifica item (voce)
+async function editItemVoice(elemento, nuovoElemento, categoria) {
+  if (!currentUser) return showNotification('Devi essere loggato per modificare elementi!');
+  elemento = (elemento || '').trim();
+  nuovoElemento = (nuovoElemento || '').trim();
+  categoria = (categoria || '').trim();
+  if (!elemento || !nuovoElemento || !categoria) return showNotification('Dati mancanti per la modifica');
+
+  if (!categories[categoria]) return showNotification(`Categoria "${categoria}" non esiste`);
+  const item = _findItemByText(categoria, elemento);
+  if (!item) return showNotification(`Elemento "${elemento}" non trovato in "${categoria}"`);
+
+  item.text = nuovoElemento;
+  await updateItemInFirebase(categoria, item.id, { text: nuovoElemento });
+  renderCategories();
+  showNotification(`"${elemento}" modificato in "${nuovoElemento}"`);
+}
+
+// Elimina item (voce)
+async function deleteItemVoice(elemento, categoria) {
+  if (!currentUser) return showNotification('Devi essere loggato per eliminare elementi!');
+  elemento = (elemento || '').trim();
+  categoria = (categoria || '').trim();
+  if (!elemento || !categoria) return showNotification('Elemento o categoria mancante');
+
+  if (!categories[categoria]) return showNotification(`Categoria "${categoria}" non esiste`);
+  const item = _findItemByText(categoria, elemento);
+  if (!item) return showNotification(`Elemento "${elemento}" non trovato in "${categoria}"`);
+
+  delete categories[categoria].items[item.id];
+  await deleteItemFromFirebase(categoria, item.id);
+  renderCategories();
+  showNotification(`"${elemento}" eliminato da "${categoria}"`);
+}
+
+// Toggle/check item (voce)
+async function checkItemVoice(elemento, categoria) {
+  if (!currentUser) return showNotification('Devi essere loggato per modificare elementi!');
+  elemento = (elemento || '').trim();
+  categoria = (categoria || '').trim();
+  if (!elemento || !categoria) return showNotification('Elemento o categoria mancante');
+
+  if (!categories[categoria]) return showNotification(`Categoria "${categoria}" non esiste`);
+  const item = _findItemByText(categoria, elemento);
+  if (!item) return showNotification(`Elemento "${elemento}" non trovato in "${categoria}"`);
+
+  // usa la tua funzione toggleItem per mantenere behaviour/timestamps coerenti
+  toggleItem(categoria, item.id);
+  renderCategories();
+  showNotification(`"${elemento}" aggiornato in "${categoria}"`);
+}
+
+// export su window (opzionale ma comodo per debug)
+window.addCategoryVoice = addCategoryVoice;
+window.deleteCategoryVoice = deleteCategoryVoice;
+window.editCategoryVoice = editCategoryVoice;
+window.addItemVoice = addItemVoice;
+window.editItemVoice = editItemVoice;
+window.deleteItemVoice = deleteItemVoice;
+window.checkItemVoice = checkItemVoice;
+
 // ==================== ESPOSIZIONE FUNZIONI GLOBALI ====================
 window.addCategory = addCategory;
 window.deleteCategory = deleteCategory;

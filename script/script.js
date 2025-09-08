@@ -459,18 +459,27 @@ async function parseCommandWithServer(text) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ text })
         });
-        const data = await res.json();
 
-        // Se il server non ritorna un JSON valido con azione-elemento-categoria
-        if (!data.azione || !data.elemento) {
-            console.warn('JSON incompleto dal server:', data);
-            return null;
+        let data = { azione: "none", elemento: "", categoria: "", nuovoElemento: "" };
+
+        try {
+            const json = await res.json();
+            // Se json ha almeno azione e elemento, usalo, altrimenti fallback
+            if (json && json.azione && json.elemento) {
+                data = json;
+                console.log("✅ JSON valido dal server:", data);
+            } else {
+                console.warn("⚠️ JSON dal server incompleto o senza azione/elemento, uso fallback:", json);
+            }
+        } catch (err) {
+            console.warn("⚠️ Errore parsing JSON dal server, uso fallback", err);
         }
 
         return data;
+
     } catch (err) {
-        console.error(err);
-        return null;
+        console.error("❌ Errore chiamata server:", err);
+        return { azione: "none", elemento: "", categoria: "", nuovoElemento: "" };
     }
 }
 

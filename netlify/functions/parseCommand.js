@@ -2,22 +2,27 @@ export async function handler(event, context) {
   try {
     const { text } = JSON.parse(event.body || '{}');
 
-    // Prompt ottimizzato con esempio
+    // Prompt ottimizzato per OpenAI
     const systemPrompt = `
-Sei un assistente che traduce comandi vocali italiani in JSON.
-Rispondi ESATTAMENTE con questo formato, senza parole extra:
+Sei un assistente che traduce comandi vocali italiani in JSON. 
+Rispondi **solo** con JSON valido, senza testo extra, senza spiegazioni.
+Il JSON deve sempre avere queste proprietà: 
 {
-  "azione": "add|edit|delete|check",
+  "azione": "add|edit|delete|check|none",
   "elemento": "...",
   "categoria": "...",
   "nuovoElemento": "..."
 }
-
-Esempio:
-Comando: "aggiungi mele alla categoria frutta"
-Risposta JSON: {"azione":"add","elemento":"mele","categoria":"frutta","nuovoElemento":""}
-
-Ora traduci questo comando in JSON:
+Regole:
+- "add" = aggiungere elemento
+- "edit" = modificare elemento
+- "delete" = eliminare elemento
+- "check" = segnare elemento completato/non completato
+- "none" = nessuna azione valida rilevata
+- Se il comando non è chiaro o mancano informazioni, usa "" per i campi vuoti e azione "none"
+- Sempre minuscolo
+- Esempio: input: "aggiungi banane alla categoria cipolle" → 
+{"azione":"add","elemento":"banane","categoria":"cipolle","nuovoElemento":""}
 `;
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -39,19 +44,13 @@ Ora traduci questo comando in JSON:
     const data = await response.json();
     let gptText = data.choices?.[0]?.message?.content || '';
 
-    // Pulizia di caratteri strani / newline
-    gptText = gptText.trim().replace(/\n/g, '');
-
     let parsed;
     try {
       parsed = JSON.parse(gptText);
-
-      // Se manca azione o elemento, fallback
       if (!parsed.azione || !parsed.elemento) {
         parsed = { azione: "none", elemento: "", categoria: "", nuovoElemento: "" };
       }
     } catch (err) {
-      // fallback sicuro
       parsed = { azione: "none", elemento: "", categoria: "", nuovoElemento: "" };
     }
 

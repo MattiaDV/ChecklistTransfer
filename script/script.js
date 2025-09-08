@@ -451,45 +451,58 @@ if (SpeechRecognition) {
     showNotification('Il tuo browser non supporta il riconoscimento vocale');
 }
 
-// ==================== FUNZIONE CHE CHIAMA LA NETLIFY FUNCTION ====================
-async function parseCommandWithServer(text) {
-    try {
-        const res = await fetch('https://checklisttransfer.netlify.app/.netlify/functions/parseCommand', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ text })
-        });
+// ==================== FUNZIONE DI PARSING DEL TESTO ====================
+function parseTextCommand(text) {
+    text = text.toLowerCase();
+    let azione = "none", elemento = "", categoria = "", nuovoElemento = "";
 
-        let data = { azione: "none", elemento: "", categoria: "", nuovoElemento: "" };
+    if (text.includes("aggiungi")) azione = "add";
+    else if (text.includes("modifica") || text.includes("cambia")) azione = "edit";
+    else if (text.includes("elimina") || text.includes("rimuovi")) azione = "delete";
+    else if (text.includes("segna") || text.includes("completato")) azione = "check";
 
-        try {
-            const json = await res.json();
-            // Se json ha almeno azione e elemento, usalo, altrimenti fallback
-            if (json && json.azione && json.elemento) {
-                data = json;
-                console.log("✅ JSON valido dal server:", data);
-            } else {
-                console.warn("⚠️ JSON dal server incompleto o senza azione/elemento, uso fallback:", json);
-            }
-        } catch (err) {
-            console.warn("⚠️ Errore parsing JSON dal server, uso fallback", err);
-        }
+    // semplice regex per catturare elemento e categoria
+    const match = text.match(/(?:aggiungi|modifica|elimina|segna).*?(.+?) (?:alla categoria|in) (.+)/);
+    if (match) {
+        elemento = match[1].trim();
+        categoria = match[2].trim();
+    }
 
-        return data;
+    return { azione, elemento, categoria, nuovoElemento };
+}
 
-    } catch (err) {
-        console.error("❌ Errore chiamata server:", err);
-        return { azione: "none", elemento: "", categoria: "", nuovoElemento: "" };
+// ==================== FUNZIONE PRINCIPALE VOICE COMMAND ====================
+async function handleVoiceCommand(recognizedText) {
+    console.log("Riconosciuto:", recognizedText);
+
+    // Usa il parsing testuale invece di OpenAI JSON
+    const { azione, elemento, categoria, nuovoElemento } = parseTextCommand(recognizedText);
+
+    if (azione === "none") {
+        showNotification("Comando non riconosciuto!");
+        return;
+    }
+
+    switch (azione) {
+        case "add":
+            await addItemVoice(elemento, categoria);
+            break;
+        case "edit":
+            await editItemVoice(elemento, nuovoElemento, categoria);
+            break;
+        case "delete":
+            await deleteItemVoice(elemento, categoria);
+            break;
+        case "check":
+            await checkItemVoice(elemento, categoria);
+            break;
     }
 }
 
-function normalizeText(text) {
-    return text?.trim().toLowerCase();
-}
-
+// ==================== FUNZIONI DI GESTIONE ELEMENTI ====================
 async function addItemVoice(elemento, categoria) {
-    elemento = normalizeText(elemento);
-    categoria = normalizeText(categoria);
+    elemento = elemento.trim();
+    categoria = categoria.trim();
 
     if (!categories[categoria]) {
         categories[categoria] = { name: categoria, items: {} };
@@ -514,13 +527,9 @@ async function addItemVoice(elemento, categoria) {
 }
 
 async function editItemVoice(elemento, nuovoElemento, categoria) {
-    elemento = normalizeText(elemento);
-    nuovoElemento = normalizeText(nuovoElemento);
-    categoria = normalizeText(categoria);
-
     if (!categories[categoria]) return showNotification(`Categoria "${categoria}" non esiste`);
 
-    const item = Object.values(categories[categoria].items).find(i => normalizeText(i.text) === elemento);
+    const item = Object.values(categories[categoria].items).find(i => i.text === elemento);
     if (!item) return showNotification(`Elemento "${elemento}" non trovato in "${categoria}"`);
 
     item.text = nuovoElemento;
@@ -530,12 +539,9 @@ async function editItemVoice(elemento, nuovoElemento, categoria) {
 }
 
 async function deleteItemVoice(elemento, categoria) {
-    elemento = normalizeText(elemento);
-    categoria = normalizeText(categoria);
-
     if (!categories[categoria]) return showNotification(`Categoria "${categoria}" non esiste`);
 
-    const item = Object.values(categories[categoria].items).find(i => normalizeText(i.text) === elemento);
+    const item = Object.values(categories[categoria].items).find(i => i.text === elemento);
     if (!item) return showNotification(`Elemento "${elemento}" non trovato in "${categoria}"`);
 
     delete categories[categoria].items[item.id];
@@ -545,12 +551,9 @@ async function deleteItemVoice(elemento, categoria) {
 }
 
 async function checkItemVoice(elemento, categoria) {
-    elemento = normalizeText(elemento);
-    categoria = normalizeText(categoria);
-
     if (!categories[categoria]) return showNotification(`Categoria "${categoria}" non esiste`);
 
-    const item = Object.values(categories[categoria].items).find(i => normalizeText(i.text) === elemento);
+    const item = Object.values(categories[categoria].items).find(i => i.text === elemento);
     if (!item) return showNotification(`Elemento "${elemento}" non trovato in "${categoria}"`);
 
     item.completed = !item.completed;
@@ -559,6 +562,10 @@ async function checkItemVoice(elemento, categoria) {
     showNotification(`Elemento "${elemento}" marcato come ${item.completed ? 'completato' : 'non completato'}`);
     renderCategories();
 }
+
+// ==================== ESEMPIO DI UTILIZZO ====================
+// handleVoiceCommand("aggiungi banane alla categoria frutta");
+// handleVoiceCommand("segna mela in frutta");
 
 // ==================== ESPOSIZIONE FUNZIONI GLOBALI ====================
 window.addCategory = addCategory;

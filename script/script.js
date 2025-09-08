@@ -406,7 +406,69 @@ document.addEventListener('DOMContentLoaded', () => {
     if (categoryInput) {
         categoryInput.addEventListener('keypress', e => { if (e.key==='Enter') addCategory(); });
     }
-});
+});// ==================== VOICE COMMANDS + AI ====================
+const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+if (SpeechRecognition) {
+    const recognition = new SpeechRecognition();
+    recognition.lang = 'it-IT';
+    recognition.interimResults = false;
+
+    recognition.addEventListener('result', async e => {
+        const text = e.results[0][0].transcript.toLowerCase().trim();
+        console.log('Riconosciuto:', text);
+        showNotification(`Hai detto: "${text}"`);
+
+        // Chiama la funzione Netlify invece di OpenAI direttamente
+        const parsed = await parseCommandWithServer(text);
+        if (!parsed) return showNotification("Non ho capito il comando");
+
+        const { azione, elemento, categoria, nuovoElemento } = parsed;
+
+        try {
+            if (azione === "add") addItemVoice(elemento, categoria);
+            else if (azione === "edit") editItemVoice(elemento, nuovoElemento, categoria);
+            else if (azione === "delete") deleteItemVoice(elemento, categoria);
+            else if (azione === "check") checkItemVoice(elemento, categoria);
+        } catch (err) {
+            console.error(err);
+            showNotification("Errore nell'eseguire il comando");
+        }
+
+        renderCategories();
+    });
+
+    // Bottone per attivare la voce
+    const voiceBtn = document.createElement('button');
+    voiceBtn.textContent = '🎤 Comandi Vocali';
+    voiceBtn.onclick = () => {
+        recognition.start();
+        showNotification('Parla ora!');
+    };
+    document.body.prepend(voiceBtn);
+
+} else {
+    showNotification('Il tuo browser non supporta il riconoscimento vocale');
+}
+
+// ==================== FUNZIONE CHE CHIAMA LA NETLIFY FUNCTION ====================
+async function parseCommandWithServer(text) {
+    try {
+        const res = await fetch('/.netlify/functions/parseCommand', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ text })
+        });
+        const data = await res.json();
+
+        // Il server risponde con JSON già pronto { azione, elemento, categoria, nuovoElemento }
+        return data;
+
+    } catch (err) {
+        console.error(err);
+        return null;
+    }
+}
 
 // ==================== ESPOSIZIONE FUNZIONI GLOBALI ====================
 window.addCategory = addCategory;
